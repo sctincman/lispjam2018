@@ -39,6 +39,24 @@
                   (behavior/moveable)
                   (physics/body 1.0 0.005))}))
 
+(def physics-step 30.0)
+
+(defn- simulation-steps
+  [world simulation-step]
+  (-> world
+      (physics/step simulation-step)
+      (collision/handle-collisions simulation-step)))
+
+(defn step-simulation
+  [world frame-time]
+  (loop [world world
+         time-left (+ frame-time
+                      (get world :simulation-time 0.0))]
+    (if (< time-left physics-step)
+      (assoc world :simulation-time time-left)
+      (recur (simulation-steps world physics-step)
+             (- time-left physics-step)))))
+
 (defn reagent-renderer [state-atom]
   (let [frame-signal (render/frames)
         world-base (signals/->Signal state-atom :world (atom {}))]
@@ -54,8 +72,7 @@
                             (fn step-world [world step]
                               (-> world
                                   (behavior/step step)
-                                  (physics/step step)
-                                  (collision/handle-collisions step)
+                                  (step-simulation step)
                                   (render/render step)))
                             (swap! state-atom
                                    (fn [state]
